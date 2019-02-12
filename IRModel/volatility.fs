@@ -16,7 +16,7 @@ module Volatility=
        <returns> number of years as a double if the input matches a tenor string, otherwise None</returns>
     **)
     let (|Tenor|_|) str =
-        let m = Regex.Match(str,"^([0-9]+)[d,w,m,y])$")
+        let m = Regex.Match(str,"(^\d*\.?\d*)([dwmy])")
         if m.Success then
             if m.Groups.Count = 3 then
                 Some((m.Groups.[1].Value,m.Groups.[2].Value))
@@ -63,17 +63,17 @@ module Volatility=
         let eig = sigma.Evd(MathNet.Numerics.LinearAlgebra.Symmetricity.Symmetric)
         let sortedindex = eig.EigenValues.ToArray() 
                             |> Array.mapi(fun i v ->i,v.Real) 
-                            |> Array.sortBy(fun (_,v) -> v)
+                            |> Array.sortByDescending(fun (_,v) -> v)
 
         
         let sigmax = sortedindex 
                         |> Array.map(fun (i,v) -> System.Math.Sqrt(v) * eig.EigenVectors.Column(i))
                         |> Matrix.Build.DenseOfColumnVectors
                         
-        let sigma = sigmax.SubMatrix(0,eig.EigenVectors.RowCount,0,nfactor)                        
+        let sigma_pc = sigmax.SubMatrix(0,eig.EigenVectors.RowCount,0,nfactor)                        
         
         //interpolation
-        sigma.EnumerateColumns()
+        sigma_pc.EnumerateColumns()
         |> Seq.map(fun c -> 
                     let f = CubicSpline.InterpolateAkimaSorted(tenorsinyears,c.ToArray())
                     fun (t) -> f.Interpolate(t)

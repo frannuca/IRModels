@@ -19,7 +19,8 @@ type hjmframework(historicalForwards:Frame<DateTime,string>,nfactors:int,maxtime
     let m_history = historicalForwards
     let mc_time = linspace(0.0,maxtimeinyears,numberoftimesteps)    
     let point_tenors = Volatility.extractTenorsFromFrame(historicalForwards) |> Array.sort
-    
+    let randy = new MersenneTwister(42); 
+    let rndgen = MathNet.Numerics.Distributions.Normal(randy)
     let mc_tenors = linspace(point_tenors.[0],point_tenors.[point_tenors.Length-1],numberoftenors)
 
     let volatility_interpolators = Volatility.compute_volatility(m_history,nfactors)
@@ -55,14 +56,11 @@ type hjmframework(historicalForwards:Frame<DateTime,string>,nfactors:int,maxtime
         let current_forward =  Array.zeroCreate(mc_forwardcurveToday.Length)
         let prev_forward =   Array.zeroCreate(mc_forwardcurveToday.Length)
         
-        let montecarlomatrix = Matrix<double>.Build.Dense(mc_time.Length,mc_tenors.Length)
-        let randy = new MersenneTwister(42);        
+        let montecarlomatrix = Matrix<double>.Build.Dense(mc_time.Length,mc_tenors.Length)               
         
         mc_forwardcurveToday.CopyTo(current_forward,0)
         mc_forwardcurveToday.CopyTo(prev_forward,0)
-
-        let rndgen = MathNet.Numerics.Distributions.Normal(randy)
-        
+                
         let time = mc_time |> Array.mapi(fun i x -> i,x)
         let tenors = mc_tenors |> Array.mapi(fun i x -> i,x)
 
@@ -84,8 +82,41 @@ type hjmframework(historicalForwards:Frame<DateTime,string>,nfactors:int,maxtime
                                 else j,j-1
                     let df_dT = (prev_forward.[jp]-prev_forward.[jm])/(mc_tenors.[jp]-mc_tenors.[jm])*dt
 
-                    current_forward.[i] <- drift+stochastic+df_dT
+                    current_forward.[j] <- drift+stochastic+df_dT
                 
                 montecarlomatrix.SetRow(i,current_forward)
 
+        montecarlomatrix
+
+    member self.getInstantaneousForward(cube:Matrix<float>,t:float)(T:float) =
+        let t_tol = (mc_time.[1]-mc_time.[0])*1e-3
+        let T_tol = ( mc_tenors.[1]-mc_tenors.[0])*1e-3
+        let ntlow,nthigh = locateIndex(mc_time, t_tol)(t)
+        let nTlow,nThigh = locateIndex(mc_tenors,T_tol)(T)
+
+        let x00 = cube.[ntlow,nTlow]
+        let x01 = cube.[ntlow,nThigh]
+        let x10 = cube.[nthigh,nTlow]
+        let x11 = cube.[nthigh,nThigh]
+
+        let dt = mc_time.[nthigh]-mc_time.[ntlow]
+        let dT = mc_tenors.[nThigh]-mc_tenors.[nTlow]
         
+        let tnorm=
+            if Math.Abs(dt)<1e-6 then
+                0.0
+            else
+                (t-mc_time.[ntlow])/dt
+        
+        let Tnorm=
+            if Math.Abs(dT)<1e-6 then
+                0.0
+            else
+                (T-mc_tenors.[nTlow])/dT
+        
+        x00*(1.0-tnorm)*(1.0-Tnorm)+x10*tnorm*(1.0-Tnorm)+x01*(1.0-tnorm)*Tnorm+x11*tnorm*Tnorm
+
+
+    member self.computeForward(cube:Matrix<float>)(t:float, T:float)=
+        let fintegrand = fun s -> self.getInstantaneousForward(cube,t)(s)
+        MathNet.Numerics.Integrate.OnClosedInterval(System.Func<float,float>(fintegrand),0.0,T)
