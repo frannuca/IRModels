@@ -110,7 +110,13 @@ type hjmframework(historicalForwards:Frame<DateTime,string>,nfactors:int,maxtime
         x00*(1.0-tnorm)*(1.0-Tnorm)+x10*tnorm*(1.0-Tnorm)+x01*(1.0-tnorm)*Tnorm+x11*tnorm*Tnorm
 
 
-    member self.computeForward(cube:Matrix<float>)(t:float<year>, T:float<year>)=
+    member self.computeForwardContinous(cube:Matrix<float>)(t:float<year>, T:float<year>)=
         let fintegrand = fun (s:float) -> self.getInstantaneousForward(cube,t)(s*1.0<year>)
         let I = MathNet.Numerics.Integration.GaussLegendreRule.Integrate(System.Func<float,float>(fintegrand),0.0,float T,16)
         I/T
+
+
+    member self.computeForwardCompounded(cube:Matrix<float>)(t:float<year>, T:float<year>)=
+        let fintegrand = fun (s:float) -> self.getInstantaneousForward(cube,t)(s*1.0<year>)
+        let I = MathNet.Numerics.Integration.GaussLegendreRule.Integrate(System.Func<float,float>(fintegrand),0.0,float T,16)
+        (Math.Pow(Math.Exp(I),1.0/float T)-1.0)

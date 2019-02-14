@@ -48,7 +48,7 @@ let main argv =
                                             if counter%100 = 0 then
                                                     printfn "%A" (float(counter) / float(Nsims) * 100.0)                                                    
                                             tenors2compute 
-                                            |> Array.map(fun T -> hjm.computeForward(cube)(tstart,T*months2years))
+                                            |> Array.map(fun T -> hjm.computeForwardContinous(cube)(tstart,T*months2years))
                                             |> floatArray
                                             )
                    |>Array.ofSeq                   
