@@ -3,6 +3,7 @@ open System
 open Deedle
 open MathNet.Numerics.LinearAlgebra
 open tools
+open tenorOps
 
 //<summary>Volatility PCA calculations and interpolation operations.</summary>
 module Volatility=    
@@ -36,10 +37,9 @@ module Volatility=
     let tenor2years tenor=
         match tenor with
         |Tenor (x,tag) -> match tag with
-                            |"d" -> Double.Parse(x)/360.0
-                            |"w" -> Double.Parse(x)*7.0/360.0
-                            |"m" -> Double.Parse(x)*30.0/360.0
-                            |"y" -> Double.Parse(x)
+                            |"d" -> Double.Parse(x)* 1.0<day> * days2years                            
+                            |"m" -> Double.Parse(x)* 1.0<month> * months2years
+                            |"y" -> Double.Parse(x) * 1.0<year>
                             |_ -> failwith(sprintf "incorrect format %s" tenor)
         | _ -> failwith(sprintf "incorrect format %s" tenor)
         
@@ -59,7 +59,8 @@ module Volatility=
         let diff_rates = history|> Frame.diff(1)
         let tenorsinyears = extractTenorsFromFrame(history)
 
-        let sigma = diff_rates.cov()
+        let sigma = diff_rates.cov().Multiply(252.0)
+
         let eig = sigma.Evd(MathNet.Numerics.LinearAlgebra.Symmetricity.Symmetric)
         let sortedindex = eig.EigenValues.ToArray() 
                             |> Array.mapi(fun i v ->i,v.Real) 
@@ -71,11 +72,20 @@ module Volatility=
                         |> Matrix.Build.DenseOfColumnVectors
                         
         let sigma_pc = sigmax.SubMatrix(0,eig.EigenVectors.RowCount,0,nfactor)                        
-        
+               
         //interpolation
         sigma_pc.EnumerateColumns()
-        |> Seq.map(fun c -> 
-                    let f = CubicSpline.InterpolateAkimaSorted(tenorsinyears,c.ToArray())
+        |> Seq.mapi(fun i c -> 
+                    //let varr =
+                    //            if i = 0 then
+                    //                let m = c.ToArray() |> Array.average
+                    //                let arr = Array.create (c.ToArray().Length) m
+                    //                Vector<float>.Build.DenseOfArray(arr)
+                    //            else 
+                    //                c
+
+                    //let f = CubicSpline.InterpolateAkimaSorted(tenorsinyears,varr.ToArray())
+                    let f = CubicSpline.InterpolateAkimaSorted(tenorOps.floatArray tenorsinyears,c.ToArray())
                     fun (t) -> f.Interpolate(t)
                     )
         |>Array.ofSeq

@@ -46,9 +46,11 @@
   <Import Project="$(FSharpTargetsPath)" />
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
+    <Compile Include="tenor.fs" />
     <Compile Include="frameops.fs" />
     <Compile Include="tools.fs" />
     <Compile Include="volatility.fs" />
+    <Compile Include="ratetransformations.fs" />
     <Compile Include="hjmframework.fs" />
     <Compile Include="Program.fs" />
     <None Include="App.config" />
