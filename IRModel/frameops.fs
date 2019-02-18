@@ -9,11 +9,11 @@ open MathNet.Numerics.LinearAlgebra
 type FrameOps () =
         
     [<Extension>]
-    static member inline values(self:Frame<DateTime,string>)=
+    static member inline values(self:Frame<'a,'b>)=
         self |> Frame.toArray2D |> Matrix.Build.DenseOfArray
        
     [<Extension>]
-    static member inline cov(self:Frame<DateTime,string>)=
+    static member inline cov(self:Frame<'a,'b>)=
         let M = self.values()
         let mu = M.ColumnSums()/(float)M.RowCount
         let centeredM = (M.EnumerateColumnsIndexed() 

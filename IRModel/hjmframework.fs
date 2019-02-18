@@ -15,7 +15,7 @@ type hjmframework(historicalForwards:Frame<DateTime,string>,nfactors:int,maxtime
     let randy = new MersenneTwister(42); 
     let rndgen = MathNet.Numerics.Distributions.Normal(randy)
     let mc_tenors = linspace(float point_tenors.[0],float point_tenors.[point_tenors.Length-1],numberoftenors)
-
+    let  mutable mc_cube:MathNet.Numerics.LinearAlgebra.Matrix<float> seq option =  None  
     let volatility_interpolators = Volatility.compute_volatility(m_history,nfactors)
 
     let _computeDrift(tenorinyears:double)=
@@ -110,13 +110,33 @@ type hjmframework(historicalForwards:Frame<DateTime,string>,nfactors:int,maxtime
         x00*(1.0-tnorm)*(1.0-Tnorm)+x10*tnorm*(1.0-Tnorm)+x01*(1.0-tnorm)*Tnorm+x11*tnorm*Tnorm
 
 
-    member self.computeForwardContinous(cube:Matrix<float>)(t:float<year>, T:float<year>)=
+    member private self.computeForwardContinous(cube:Matrix<float>)(t:float<year>, T:float<year>)=
         let fintegrand = fun (s:float) -> self.getInstantaneousForward(cube,t)(s*1.0<year>)
         let I = MathNet.Numerics.Integration.GaussLegendreRule.Integrate(System.Func<float,float>(fintegrand),0.0,float T,16)
         I/T
 
 
-    member self.computeForwardCompounded(cube:Matrix<float>)(t:float<year>, T:float<year>)=
+    member private self.computeForwardCompounded(cube:Matrix<float>)(t:float<year>, T:float<year>)=
         let fintegrand = fun (s:float) -> self.getInstantaneousForward(cube,t)(s*1.0<year>)
         let I = MathNet.Numerics.Integration.GaussLegendreRule.Integrate(System.Func<float,float>(fintegrand),0.0,float T,16)
         (Math.Pow(Math.Exp(I),1.0/float T)-1.0)
+
+
+    member self.GenerateForwardMCSamples(nsims:int)=
+        mc_cube <- Some(seq {for i in 0 .. nsims do yield self.runPath()})
+    
+    member self.ComputeForwards(tenors2compute:float<month> array,tstart:float<year>)=                                
+        match mc_cube with
+        |Some(cubes) ->
+                        (cubes |> Seq.mapi(fun counter cube ->                                                                                                                                         
+                                                            tenors2compute 
+                                                            |> Array.map(fun T -> self.computeForwardContinous(cube)(tstart,T*months2years))
+                                                            |> floatArray
+                                                            )
+                                |> Array.ofSeq                   
+                                |> MathNet.Numerics.LinearAlgebra.Matrix.Build.DenseOfRowArrays).ToArray()
+                                |> Frame.ofArray2D                                
+                                |> Frame.indexColsWith(tenors2compute|>Array.map(fun tenor -> sprintf "%Am" (float tenor)))
+
+        |None -> failwith "No internal mc cubes has been calculated, please run GenerateForwardMCSamples"
+                

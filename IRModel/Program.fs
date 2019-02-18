@@ -10,7 +10,7 @@ open tenorOps
 let main argv = 
     let time = System.Diagnostics.Stopwatch.StartNew()
 
-    let ustreasury0 = Frame.ReadCsv(@"C:\Users\venus\code\github\IRModels\data\USTREASURY-YIELD.csv",true,true)                        
+    let ustreasury0 = Frame.ReadCsv(@"C:\Users\venus\code\github\IRModels\data\USTREASURY-YIELD_2009_2019.csv",true,true)                        
                         |> Frame.indexRows "time"                        
                         |> Frame.sortRowsByKey
                         |> Frame.mapValues(fun x -> x/100.0) 
@@ -32,47 +32,21 @@ let main argv =
     uszero.SaveCsv("C:/temp/uszero.csv",true)
     let usinstantaneousforward = Ratetransformations.fromZerostoInstantaneousForward(uszero)
     usinstantaneousforward.SaveCsv("C:/temp/usinstantaneousforward.csv",true)
-    let forwardframe = Frame.ReadCsv(@"C:\Users\venus\code\github\IRModels\data\hjm_formatted.csv",true,true)
-    let frame:Frame<DateTime,string> = forwardframe |> Frame.indexRows("time") |> Frame.sortRowsByKey
-    //let hjm = hjmframework(frame,3,1.0,200,252)
     let hjm = hjmframework(usinstantaneousforward,3,1.0,360,12*30)
 
-    let Nsims = 1000
-    
+    let Nsims = 10000
+    hjm.GenerateForwardMCSamples(Nsims)
+    let forwards = hjm.ComputeForwards([|1.0<month>; 3.0<month>|],0.25<year>)
+  
+    let avgcurve = forwards |> Stats.mean                            
+    let stddevcurve =   forwards |> Stats.stdDev
+    forwards.SaveCsv("C:/temp/forwards.csv",true)
+    //let spreadat999 = rateat999 - avgcurve
 
-    let MCforwards = seq {for i in 0 .. Nsims do yield hjm.runPath()}
-    let tenors2compute = [|1.0<month>;3.0<month>;6.0<month>; 5.0<year>* years2months; 15.0<year>* years2months |]
-    let tstart = 0.5<year>
-    let l3marr=
-        MCforwards |> Seq.mapi(fun counter cube ->                                              
-                                            if counter%100 = 0 then
-                                                    printfn "%A" (float(counter) / float(Nsims) * 100.0)                                                    
-                                            tenors2compute 
-                                            |> Array.map(fun T -> hjm.computeForwardContinous(cube)(tstart,T*months2years))
-                                            |> floatArray
-                                            )
-                   |>Array.ofSeq                   
-                   |> MathNet.Numerics.LinearAlgebra.Matrix.Build.DenseOfRowArrays
-    let avgcurve =      l3marr.EnumerateColumns() 
-                            |> Seq.mapi(fun i c -> c.ToArray() |> Array.average) 
-                            |> Array.ofSeq 
-                            |> Array.mapi(fun i v -> tenors2compute.[i], v) |> Series.ofObservations
-    let stddevcurve =   l3marr.EnumerateColumns() 
-                        |> Seq.map(fun c -> MathNet.Numerics.Statistics.Statistics.StandardDeviation(c))
-                        |> Array.ofSeq
-                        |> Array.mapi(fun i v -> tenors2compute.[i], v) |> Series.ofObservations
-
-    let rateat999 =   l3marr.EnumerateColumns() |> Seq.map(fun c -> 
-                                                                    let l = c.ToArray() |> Array.sort
-                                                                    l.[int(float(l.Length)*0.999)]
-                                                               )|> Array.ofSeq
-                                                               |> Array.mapi(fun i v -> tenors2compute.[i], v) |> Series.ofObservations
-    let spreadat999 = rateat999 - avgcurve
-
-    printfn "avg rates at %f is %A" tstart avgcurve
-    printfn "standard devitatoins at %f is %A" tstart stddevcurve
-    printfn "rates at 99.9 at %f is %A" tstart rateat999
-    printfn "spread at 99.9 at %f is %A" tstart spreadat999
+    //printfn "avg rates at %f is %A" tstart avgcurve
+    //printfn "standard devitatoins at %f is %A" tstart stddevcurve
+    //printfn "rates at 99.9 at %f is %A" tstart rateat999
+    //printfn "spread at 99.9 at %f is %A" tstart spreadat999
 
 
     time.Stop()
