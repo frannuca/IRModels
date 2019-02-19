@@ -9,9 +9,20 @@ module Solver=
     
     type RBFInterpolator(input:Matrix<float>, output:Vector<float>,input2:Matrix<float>, output2:Vector<float>)=
     
-        let kernel(c:float)(x:Vector<float>,y:Vector<float>)=
+        let kernel2(c:float)(x:Vector<float>,y:Vector<float>)=
             Math.Exp(c*(x-y).L2Norm())
 
+        let kernel3(c:float)(x:Vector<float>,y:Vector<float>)=
+            Math.Sqrt(c**2.0 + (x-y).L2Norm())
+
+        let kernel4(c:float)(x:Vector<float>,y:Vector<float>)=
+            1.0/Math.Sqrt(c**2.0 + (x-y).L2Norm())
+        
+        let kernel(c:float)(x:Vector<float>,y:Vector<float>)=
+            1.0/Math.Sqrt(1.0 + (c*(x-y).L2Norm())**2.0)
+
+ 
+       
         let Phi(c) = [| for i in 0 .. input.RowCount-1 do 
                         yield [|for j in 0 .. input.RowCount-1 do
                                 yield kernel(c)(input.Row(i),input.Row(j)) |]
@@ -47,13 +58,17 @@ module Solver=
         member self.printError(c:float)=
             let W = calibrateKernel(c)
             let finterp = interp(c,W)
-            [|0 .. input2.RowCount-1|] 
-            |> Array.iter(fun n -> 
-                                    let computed = finterp(input2.Row(n))
-                                    let expected = output2.[n]
-                                    printfn "computed=%f, expected=%f, rel err =%f" computed expected ((computed-expected)/computed*100.0)
-                                    )
-            
+            let computed,expected,relerr =
+                [|0 .. input2.RowCount-1|] 
+                |> Array.map(fun n -> 
+                                        let computed = Math.Exp(finterp(input2.Row(n)))/1e6
+                                        let expected = Math.Exp(output2.[n])/1e6                                                                        
+                                        computed, expected, ((computed-expected)/computed*100.0)
+                                        )
+                |>Array.maxBy(fun (_,_,x)-> x)
+                
+            printfn "computed=%f, expected=%f, rel err =%f" computed expected relerr
+
         member self.SolveExponentialRBFInterpolator(c0:float,cmin:float,cmax:float)=     
         
             let fiterp = fun (c:float array) -> self.computeInterpolationError(c.[0])

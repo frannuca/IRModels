@@ -24,7 +24,7 @@ let main argv =
     let output2 = datam2.Column(datam2.ColumnCount-1)
 
     let rbf = new RBFInterpolator(input,output,input2,output2)
-    let c = rbf.SolveExponentialRBFInterpolator(1.0,0.2,5.0)
+    let c = rbf.SolveExponentialRBFInterpolator(1.0,0.2,15.0)
     let err = rbf.computeInterpolationError(c)
     rbf.printError(c)
     printfn "c=%f" c
