@@ -10,7 +10,7 @@ open tenorOps
 let main argv = 
     let time = System.Diagnostics.Stopwatch.StartNew()
 
-    let ustreasury0 = Frame.ReadCsv(@"C:\Users\venus\code\github\IRModels\data\USTREASURY-YIELD_2009_2019.csv",true,true)                        
+    let ustreasury0 = Frame.ReadCsv(@"C:\Users\venus\code\github\IRModels\data\USTREASURY-YIELD.csv",true,true)                        
                         |> Frame.indexRows "time"                        
                         |> Frame.sortRowsByKey
                         |> Frame.mapValues(fun x -> x/100.0) 
@@ -28,10 +28,11 @@ let main argv =
     let ustreasury = Frame.ofColumns(ustreasury0.Columns.Realign(orderedtenors))
         
     ustreasury.SaveCsv("C:/temp/ustreasury.csv",true)
-    let uszero = Ratetransformations.fromContinuousRatetoZeros(ustreasury);
-    uszero.SaveCsv("C:/temp/uszero.csv",true)
-    let usinstantaneousforward = Ratetransformations.fromZerostoInstantaneousForward(uszero)
+    let uszero = Ratetransformations.fromCompoundingRatetoDiscount(ustreasury);
+    uszero.SaveCsv("C:/temp/discount.csv",true)
+    let usinstantaneousforward = Ratetransformations.fromDiscounttoInstantaneousForward(uszero)
     usinstantaneousforward.SaveCsv("C:/temp/usinstantaneousforward.csv",true)
+    
     let hjm = hjmframework(usinstantaneousforward,3,1.0,360,12*30)
 
     let Nsims = 10000

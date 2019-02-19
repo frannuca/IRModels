@@ -5,7 +5,27 @@ open tenorOps
 module Ratetransformations=
     open System.Collections.Generic
 
-    let fromZerostoInstantaneousForward(frame:Frame<DateTime,string>)=
+    let toDiscount(t:float<year>,rate:float)=
+        if t<1.0<year> then
+            1.0/(1.0+rate * float(t))
+        else
+            let tm = t*years2months
+            Math.Pow(1.0/(1.0+rate/float(tm)),float(tm))
+
+    let fromCompoundingRatetoDiscount(frame:Frame<DateTime,string>)=
+        frame 
+        |> Frame.mapRows(fun date row -> 
+                                let x = row.Keys |>  Seq.map(Volatility.tenor2years) |> Array.ofSeq 
+                                let y = row.GetValues() |> Array.ofSeq 
+                                                   |> Array.mapi(fun i s -> 
+                                                                            let v:float =  s
+                                                                            toDiscount(x.[i],v))
+                                row.Observations |> Seq.mapi(fun i k -> k.Key,y.[i])
+                                |>Series.ofObservations
+                                )
+        |>Frame.ofRows
+
+    let fromDiscounttoInstantaneousForward(frame:Frame<DateTime,string>)=
         frame 
         |> Frame.mapRows(fun date row -> 
                                 let x = row.Keys |>  Seq.map(Volatility.tenor2years) |> Array.ofSeq 
@@ -18,21 +38,8 @@ module Ratetransformations=
                                )
         |>Frame.ofRows
            
-
-    let fromContinuousRatetoZeros(frame:Frame<DateTime,string>)=
-        frame 
-        |> Frame.mapRows(fun date row -> 
-                                let x = row.Keys |>  Seq.map(Volatility.tenor2years) |> Array.ofSeq 
-                                let y = row.GetValues() |> Array.ofSeq 
-                                                   |> Array.mapi(fun i s -> 
-                                                                            let v:float =  s
-                                                                            Math.Exp(-v* float x.[i]))                               
-                                row.Observations |> Seq.mapi(fun i k -> k.Key,y.[i])
-                                |>Series.ofObservations
-                                )
-        |>Frame.ofRows
-        
-    let fromZerostoContinuousRate(frame:Frame<DateTime,string>)=
+       
+    let fromDicounttoContinuousRate(frame:Frame<DateTime,string>)=
         frame 
         |> Frame.mapRows(fun date row -> 
                                 let x = row.Keys |>  Seq.map(Volatility.tenor2years) |> Array.ofSeq 

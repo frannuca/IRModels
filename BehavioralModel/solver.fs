@@ -29,6 +29,7 @@ module Solver=
 
     
         member self.computeInterpolationError(c:float)=
+           
             let W = calibrateKernel(c)
             let finterp = interp(c,W)
             let e = [|0 .. input2.RowCount-1|] 
@@ -58,7 +59,7 @@ module Solver=
             let fiterp = fun (c:float array) -> self.computeInterpolationError(c.[0])
             let f = new NonlinearObjectiveFunction(1,fiterp)
             
-            let constraintarr = [|new NonlinearConstraint(f,System.Func<float[],float>(fun x -> x.[0]),ConstraintType.GreaterThanOrEqualTo,cmin,System.Func<float[],float[]>(fun x -> [|1.0|]),1e-12)|]
+            let constraintarr = [|new NonlinearConstraint(f,System.Func<float[],float>(fun x -> x.[0]),ConstraintType.GreaterThanOrEqualTo,cmin,System.Func<float[],float[]>(fun x -> [|1.0|]),1e-4)|]
             let cobyla = new Cobyla(f,constraintarr);
 
             let sucess = cobyla.Minimize([|c0|])
