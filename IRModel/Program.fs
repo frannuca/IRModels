@@ -28,7 +28,7 @@ let main argv =
     let ustreasury = Frame.ofColumns(ustreasury0.Columns.Realign(orderedtenors))
         
     ustreasury.SaveCsv("C:/temp/ustreasury.csv",true)
-    let uszero = Ratetransformations.fromCompoundingRatetoDiscount(ustreasury);
+    let uszero = Ratetransformations.fromCompoundingRatetoDiscount(1.0)(ustreasury);
     uszero.SaveCsv("C:/temp/discount.csv",true)
     let usinstantaneousforward = Ratetransformations.fromDiscounttoInstantaneousForward(uszero)
     usinstantaneousforward.SaveCsv("C:/temp/usinstantaneousforward.csv",true)
