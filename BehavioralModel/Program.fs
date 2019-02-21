@@ -23,9 +23,9 @@ let main argv =
     let input2 =  datam2.SubMatrix(0,datam2.RowCount,0,nparams)
     let output2 = datam2.Column(datam2.ColumnCount-1)
 
-    let rbf = new RBFInterpolator(input,output,input2,output2)
-    let c = rbf.SolveExponentialRBFInterpolator(1.0,0.2,15.0)
+    let rbf = new RBFInterpolator(input,output,input2,output2,0.15)
+    let c = rbf.SolveExponentialRBFInterpolator(1.0,0.0005,25.0)
     let err = rbf.computeInterpolationError(c)
-    rbf.printError(c)
+    rbf.printError(c,1.0)
     printfn "c=%f" c
     0
