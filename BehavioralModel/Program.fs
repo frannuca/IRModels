@@ -9,7 +9,22 @@ open BehavioralModel.Solver
 [<EntryPoint>]
 let main argv = 
 
+    let grid= Frame.ReadCsv(@"C:\Users\venus\code\github\IRModels\data\grid.csv",true,true) 
+                |> Frame.toArray2D 
+                |> Matrix<float>.Build.DenseOfArray                
 
+    
+    let interpn = LinealInterpn(grid.SubMatrix(0,grid.RowCount,0,grid.ColumnCount-1).ToRowArrays(),grid.Column(grid.ColumnCount-1).ToArray(),8)
+
+    let grid_test= Frame.ReadCsv(@"C:\Users\venus\code\github\IRModels\data\grid_test.csv",true,true) 
+                    |> Frame.toArray2D 
+                    |> Matrix<float>.Build.DenseOfArray                
+    
+    
+    let gridvals = grid_test.ToRowArrays() |> Array.map(fun r -> interpn.interp(r.[0 .. r.Length-2]),r.[r.Length-1])
+    gridvals |> Array.iter(fun (a,b) -> printfn "calculated=%f, expected=%f" a b)
+
+    printfn "///////////////////////////////////////////////////"
     let data = Frame.ReadCsv(@"C:\Users\venus\code\github\IRModels\data\sphere.csv",true,true)
     let datam = data.ToArray2D() |> Matrix<float>.Build.DenseOfArray
     let nparams = data.ColumnCount-1
