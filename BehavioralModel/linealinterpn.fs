@@ -40,10 +40,15 @@ type LinealInterpn(grid:float[][],f:float array,ndecimals:int)=
     member self.interp(x0:float array)=
         let x = x0 |> Vector.Build.DenseOfArray
         let subgrid = x.ToArray() 
-                        |> Array.mapi(fun n s -> let (nlow,nhigh) = locateIndex(m_axis.[n],1e-6) x.[n]
+                        |> Array.mapi(fun n s -> let (nlow,nhigh) = locateIndex(m_axis.[n],1e-10) x.[n]
                                                  [|m_axis.[n].[nlow];m_axis.[n].[nhigh]|])
-
+ 
+        
         let points= [|0 .. m_grid.RowCount-1|]
+                      |> Array.filter(fun i -> let pv = m_grid.Row(i) 
+                                               [0 .. pv.Count-1]
+                                               |>Seq.forall(fun k -> pv.[k]<=subgrid.[k].[1] && pv.[k]>=subgrid.[k].[0])
+                                      )
                       |> Array.map(fun i-> i,(m_grid.Row(i)-x).L2Norm())
                       |> Array.sortBy(fun (_,s) -> s)
                       |> Array.take(int(2.0**float Ndim))
@@ -53,16 +58,15 @@ type LinealInterpn(grid:float[][],f:float array,ndecimals:int)=
 
         
         points
-            |> Array.map(fun (p,fval) ->
-                                        let naux=
-                                                    p.ToArray() 
-                                                    |> Array.mapi(fun k u -> 
-                                                                            let ds = (subgrid.[k].[1]-subgrid.[k].[0])
-                                                                            let d1 = Math.Abs(p.[k] - x.[k])                                                                            
-                                                                            ds-d1                                                                                                                                                        
-                                                                           )
-                                                    |> Array.fold(fun state g -> state*g) 1.0
-                                        naux*fval/gridnorm
+            |> Array.map(fun (p,fval) ->(p.ToArray() 
+                                         |> Array.mapi(fun k u -> 
+                                                                    let ss = fval
+                                                                    let a = (subgrid.[k].[1]-subgrid.[k].[0])
+                                                                    let b  = Math.Abs(p.[k] - x.[k])
+                                                                    let r = a-b
+                                                                    r
+                                                                    )
+                                         |> Array.fold(fun state g -> state*g) 1.0)*fval/gridnorm                                        
                         )
             |> Array.sum
         
